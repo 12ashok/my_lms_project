@@ -1,22 +1,24 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11-slim'
-        }
-    }
-    
+    agent any // Runs directly on the Jenkins VM shell
+
     stages {
         stage('Install Dependencies') {
             steps {
-                // Now 'pip' will be found because it exists inside the python image
-                sh 'pip install -r requirements.txt'
+                // Use pip3 instead of pip
+                sh 'pip3 install -r requirements.txt'
             }
         }
         stage('Run Tests') {
             steps {
-                sh 'python manage.py test'
+                // Use python3 instead of python
+                sh 'python3 manage.py test'
             }
         }
-        // ... rest of your build stages
+        stage('Docker Build') {
+            steps {
+                // This still works because Docker is installed on the VM
+                sh 'docker build -t lms-site:latest .'
+            }
+        }
     }
 }
