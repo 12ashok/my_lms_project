@@ -11,7 +11,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 // Now that files are present, build the image
-                sh 'docker build -t lms-app:latest .'
+                sh 'docker build --no-cache -t lms-app:latest .'
             }
         }
         stage('Run Tests') {
