@@ -1,25 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <title>My Learning Site</title>
+    <title>DevOps Learning</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; max-width: 800px; margin: auto; padding: 20px; }
+        .card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-left: 5px solid #28a745; }
+        h2 { color: #333; }
+        .answer { color: #555; display: none; }
+        button { cursor: pointer; background: #007bff; color: white; border: none; padding: 5px 10px; }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <h1>Available Courses</h1>
-        <div class="row">
-            {% for course in courses %}
-            <div class="col-md-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ course.title }}</h5>
-                        <p class="card-text">{{ course.description|truncatewords:20 }}</p>
-                        <a href="{% url 'course_detail' course.id %}" class="btn btn-primary">Start Learning</a>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+<body>
+    <h1>DevOps Important Questions</h1>
+    {% for q in questions %}
+        <div class="card">
+            <h3>{{ q.title }}</h3>
+            <button onclick="this.nextElementSibling.style.display='block'">Show Answer</button>
+            <p class="answer">{{ q.answer }}</p>
         </div>
-    </div>
+    {% endfor %}
 </body>
 </html>
