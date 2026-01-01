@@ -1,14 +1,9 @@
-from django.db import models
-from django.contrib.auth.models import User
+from django.db import db
 
-class Course(models.Model):
-    title = models.CharField(max_length=200)
-    description = models.TextField()
-    thumbnail = models.ImageField(upload_to='course_logos/')
-    created_at = models.DateTimeField(auto_now_add=True)
+class DevOpsQuestion(db.Model):
+    title = db.CharField(max_length=200)
+    answer = db.TextField()
+    category = db.CharField(max_length=100, default="DevOps")
 
-class Lesson(models.Model):
-    course = models.ForeignKey(Course, on_index=True, on_delete=models.CASCADE)
-    title = models.CharField(max_length=200)
-    video_url = models.URLField()  # Link to YouTube/Vimeo
-    content = models.TextField()   # Text instructions
+    def __str__(self):
+        return self.title
