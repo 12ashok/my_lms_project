@@ -1,23 +1,25 @@
 pipeline {
-    agent any // Runs directly on the Jenkins VM shell
+    agent any 
 
     stages {
-        stage('Install Dependencies') {
+        stage('Build Image') {
             steps {
-                // Use pip3 instead of pip
-                sh 'pip3 install -r requirements.txt'
+                // Build the image first
+                sh 'docker build -t lms-app:${BUILD_NUMBER} .'
+                sh 'docker tag lms-app:${BUILD_NUMBER} lms-app:latest'
             }
         }
-        stage('Run Tests') {
+        stage('Run Tests inside Container') {
             steps {
-                // Use python3 instead of python
-                sh 'python3 manage.py test'
+                // Run tests inside the container we just built
+                // --rm removes the container after the test finishes
+                sh 'docker run --rm lms-app:latest python manage.py test'
             }
         }
-        stage('Docker Build') {
+        stage('Deploy') {
             steps {
-                // This still works because Docker is installed on the VM
-                sh 'docker build -t lms-site:latest .'
+                // Use Docker Compose to restart the site with the new image
+                sh 'docker-compose up -d'
             }
         }
     }
