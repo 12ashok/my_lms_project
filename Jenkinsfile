@@ -17,7 +17,11 @@ pipeline {
         stage('Run Tests') {
             steps {
                 // This will now work because manage.py was copied into the image
-                sh 'docker run --rm lms-app:latest python manage.py test'
+                sh '''
+                    LOCATION=$(docker run --rm lms-app:latest find /code -name "manage.py" | head -n 1)
+                    DIR_PATH=$(dirname $LOCATION)
+                    docker run --rm -w $DIR_PATH lms-app:latest python manage.py test
+                '''
             }
         }
     }
