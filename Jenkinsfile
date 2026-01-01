@@ -13,7 +13,7 @@ pipeline {
             steps {
                 // Run tests inside the container we just built
                 // --rm removes the container after the test finishes
-                sh 'docker run --rm lms-app:latest python manage.py test'
+                sh 'docker run --rm lms-app:latest python /code/manage.py test'
             }
         }
         stage('Deploy') {
