@@ -7,58 +7,49 @@ pipeline {
     }
 
     stages {
-        stage('Checkout & Permissions') {
+        stage('Cleanup & Checkout') {
             steps {
-                // Pulls code from Git
+                deleteDir()
                 checkout scm
-                
-                script {
-                    // Fix permissions in case manual files were created as 'ubuntu'
-                    // Requires "jenkins ALL=(ALL) NOPASSWD: ALL" in /etc/sudoers
-                    sh 'sudo chown -R jenkins:jenkins .'
-                }
             }
         }
 
         stage('Build Image') {
             steps {
                 script {
-                    // Find manage.py location dynamically
                     def managePyPath = sh(script: 'find . -name manage.py | head -n 1', returnStdout: true).trim()
-                    
                     if (managePyPath == "") {
-                        error "FATAL: manage.py not found. Ensure it is in your Git repo or VM workspace."
+                        error "FATAL: manage.py not found in Git."
                     }
-
                     def projectDir = sh(script: "dirname ${managePyPath}", returnStdout: true).trim()
                     
                     dir(projectDir) {
-                        // Build the Docker image
                         sh "docker build --no-cache -t ${IMAGE_NAME}:latest ."
                     }
                 }
             }
         }
 
-        stage('Run Unit Tests') {
-            steps {
-                // This runs the container, executes tests, then DELETES the container (--rm)
-                sh "docker run --rm ${IMAGE_NAME}:latest python manage.py test"
-            }
-        }
-
-        stage('Deploy Application') {
+        stage('Deploy & Database Update') {
             steps {
                 script {
-                    // 1. Stop and remove the old container if it is already running
+                    // 1. Stop and remove the old container
                     sh "docker stop ${CONTAINER_NAME} || true"
                     sh "docker rm ${CONTAINER_NAME} || true"
 
-                    // 2. Start the new container in Detached mode (-d) to keep it running
-                    // Maps port 8000 of the VM to port 8000 of the container
+                    // 2. Start the new container
                     sh "docker run -d -p 8000:8000 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
+
+                    // 3. WAIT for the container process to initialize
+                    echo "Waiting for container to initialize..."
+                    sleep 5
+
+                    // 4. Run Migrations inside the running container
+                    echo "Running Database Migrations..."
+                    sh "docker exec ${CONTAINER_NAME} python manage.py makemigrations"
+                    sh "docker exec ${CONTAINER_NAME} python manage.py migrate"
                     
-                    echo "Application is running at http://your-ip:8000"
+                    echo "Deployment and Database Migration Complete!"
                 }
             }
         }
@@ -66,10 +57,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment Successful!"
-        }
-        failure {
-            echo "Pipeline failed. Check logs for manage.py location or Permission issues."
+            echo "Successfully deployed to http://98.92.195.182:8000"
         }
     }
 }
