@@ -1,25 +1,42 @@
 pipeline {
-    agent any 
+    agent any
 
     stages {
-        stage('Build Image') {
+        stage('Checkout & Clean') {
             steps {
-                // Build the image first
-                sh 'docker build -t lms-app:${BUILD_NUMBER} .'
-                sh 'docker tag lms-app:${BUILD_NUMBER} lms-app:latest'
+                // Clear old data and pull fresh code from Git
+                deleteDir()
+                checkout scm
             }
         }
-        stage('Run Tests inside Container') {
+
+        stage('Locate and Build') {
             steps {
-                // Run tests inside the container we just built
-                // --rm removes the container after the test finishes
-                sh 'docker run --rm -w /code lms-app:latest python manage.py test'
+                script {
+                    // 1. Find the path to manage.py
+                    def managePyPath = sh(script: 'find . -name manage.py | head -n 1', returnStdout: true).trim()
+                    
+                    if (managePyPath == "") {
+                        error "FATAL: manage.py not found in the repository! Check your Git files."
+                    }
+
+                    // 2. Get the directory containing manage.py
+                    def projectDir = sh(script: "dirname ${managePyPath}", returnStdout: true).trim()
+                    echo "Found manage.py at: ${managePyPath}"
+                    echo "Switching build context to: ${projectDir}"
+
+                    // 3. Build the image FROM that directory
+                    dir(projectDir) {
+                        sh "docker build --no-cache -t lms-app:latest ."
+                    }
+                }
             }
         }
-        stage('Deploy') {
+
+        stage('Test') {
             steps {
-                // Use Docker Compose to restart the site with the new image
-                sh 'docker-compose up -d'
+                // Run tests using the image we just built
+                sh "docker run --rm lms-app:latest python manage.py test"
             }
         }
     }
