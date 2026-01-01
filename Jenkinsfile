@@ -2,30 +2,31 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout & Clean') {
+        stage('Checkout & Sync') {
             steps {
-                // Clear old data and pull fresh code from Git
-                deleteDir()
+                // REMOVED deleteDir() to protect your manually created manage.py
                 checkout scm
+                
+                script {
+                    // Ensure Jenkins user owns the files you created as 'ubuntu'
+                    sh 'sudo chown -R jenkins:jenkins .'
+                    sh 'ls -la' // Diagnostic: Check if manage.py is visible in logs
+                }
             }
         }
 
         stage('Locate and Build') {
             steps {
                 script {
-                    // 1. Find the path to manage.py
                     def managePyPath = sh(script: 'find . -name manage.py | head -n 1', returnStdout: true).trim()
                     
                     if (managePyPath == "") {
-                        error "FATAL: manage.py not found in the repository! Check your Git files."
+                        error "FATAL: manage.py still missing. Run 'django-admin startproject core .' on the VM terminal!"
                     }
 
-                    // 2. Get the directory containing manage.py
                     def projectDir = sh(script: "dirname ${managePyPath}", returnStdout: true).trim()
-                    echo "Found manage.py at: ${managePyPath}"
-                    echo "Switching build context to: ${projectDir}"
+                    echo "Found project at: ${projectDir}"
 
-                    // 3. Build the image FROM that directory
                     dir(projectDir) {
                         sh "docker build --no-cache -t lms-app:latest ."
                     }
@@ -35,7 +36,6 @@ pipeline {
 
         stage('Test') {
             steps {
-                // Run tests using the image we just built
                 sh "docker run --rm lms-app:latest python manage.py test"
             }
         }
