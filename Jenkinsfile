@@ -1,43 +1,75 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "lms-app"
+        CONTAINER_NAME = "lms-container"
+    }
+
     stages {
-        stage('Checkout & Sync') {
+        stage('Checkout & Permissions') {
             steps {
-                // REMOVED deleteDir() to protect your manually created manage.py
+                // Pulls code from Git
                 checkout scm
                 
                 script {
-                    // Ensure Jenkins user owns the files you created as 'ubuntu'
+                    // Fix permissions in case manual files were created as 'ubuntu'
+                    // Requires "jenkins ALL=(ALL) NOPASSWD: ALL" in /etc/sudoers
                     sh 'sudo chown -R jenkins:jenkins .'
-                    sh 'ls -la' // Diagnostic: Check if manage.py is visible in logs
                 }
             }
         }
 
-        stage('Locate and Build') {
+        stage('Build Image') {
             steps {
                 script {
+                    // Find manage.py location dynamically
                     def managePyPath = sh(script: 'find . -name manage.py | head -n 1', returnStdout: true).trim()
                     
                     if (managePyPath == "") {
-                        error "FATAL: manage.py still missing. Run 'django-admin startproject core .' on the VM terminal!"
+                        error "FATAL: manage.py not found. Ensure it is in your Git repo or VM workspace."
                     }
 
                     def projectDir = sh(script: "dirname ${managePyPath}", returnStdout: true).trim()
-                    echo "Found project at: ${projectDir}"
-
+                    
                     dir(projectDir) {
-                        sh "docker build --no-cache -t lms-app:latest ."
+                        // Build the Docker image
+                        sh "docker build --no-cache -t ${IMAGE_NAME}:latest ."
                     }
                 }
             }
         }
 
-        stage('Test') {
+        stage('Run Unit Tests') {
             steps {
-                sh "docker run --rm lms-app:latest python manage.py test"
+                // This runs the container, executes tests, then DELETES the container (--rm)
+                sh "docker run --rm ${IMAGE_NAME}:latest python manage.py test"
             }
+        }
+
+        stage('Deploy Application') {
+            steps {
+                script {
+                    // 1. Stop and remove the old container if it is already running
+                    sh "docker stop ${CONTAINER_NAME} || true"
+                    sh "docker rm ${CONTAINER_NAME} || true"
+
+                    // 2. Start the new container in Detached mode (-d) to keep it running
+                    // Maps port 8000 of the VM to port 8000 of the container
+                    sh "docker run -d -p 8000:8000 --name ${CONTAINER_NAME} ${IMAGE_NAME}:latest"
+                    
+                    echo "Application is running at http://your-ip:8000"
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment Successful!"
+        }
+        failure {
+            echo "Pipeline failed. Check logs for manage.py location or Permission issues."
         }
     }
 }
