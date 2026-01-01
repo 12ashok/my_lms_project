@@ -1,29 +1,22 @@
 pipeline {
-    agent any 
-
+    agent {
+        docker {
+            image 'python:3.11-slim'
+        }
+    }
+    
     stages {
         stage('Install Dependencies') {
             steps {
+                // Now 'pip' will be found because it exists inside the python image
                 sh 'pip install -r requirements.txt'
             }
         }
         stage('Run Tests') {
             steps {
-                // Ensure your code isn't broken before building
                 sh 'python manage.py test'
             }
         }
-        stage('Build Docker Image') {
-            steps {
-                // Creates a versioned image of your site
-                sh 'docker build -t my-lms-site:latest .'
-            }
-        }
-        stage('Deploy') {
-            steps {
-                // Stop the old version and start the new one
-                sh 'docker-compose up -d'
-            }
-        }
+        // ... rest of your build stages
     }
 }
