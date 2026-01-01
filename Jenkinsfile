@@ -1,25 +1,23 @@
 pipeline {
-    agent any 
+    agent any
 
     stages {
-        stage('Build Image') {
+        stage('Checkout Code') {
             steps {
-                // Build the image first
-                sh 'docker build -t lms-app:${BUILD_NUMBER} .'
-                sh 'docker tag lms-app:${BUILD_NUMBER} lms-app:latest'
+                // This pulls your code from Git into the Jenkins workspace
+                checkout scm
             }
         }
-        stage('Run Tests inside Container') {
+        stage('Docker Build') {
             steps {
-                // Run tests inside the container we just built
-                // --rm removes the container after the test finishes
-                sh 'docker run --rm -w /code lms-app:latest python manage.py test'
+                // Now that files are present, build the image
+                sh 'docker build -t lms-app:latest .'
             }
         }
-        stage('Deploy') {
+        stage('Run Tests') {
             steps {
-                // Use Docker Compose to restart the site with the new image
-                sh 'docker-compose up -d'
+                // This will now work because manage.py was copied into the image
+                sh 'docker run --rm lms-app:latest python manage.py test'
             }
         }
     }
